@@ -203,6 +203,7 @@ class BrowserColumn(Pager):
             return
 
         base_color = ['in_browser']
+        linenumber_color = ['linenumber']
 
         self.win.move(0, 0)
 
@@ -231,6 +232,9 @@ class BrowserColumn(Pager):
 
         copied = [f.path for f in self.fm.copy_buffer]
 
+        # The width of the linenumber gutter
+        linenumber_width = len(str(self.hei))
+
         selected_i = self.target.pointer
         for line in range(self.hei):
             i = line + self.scroll_begin
@@ -252,12 +256,24 @@ class BrowserColumn(Pager):
                     drawn.path in copied, tagged_marker, drawn.infostring,
                     drawn.vcsfilestatus, drawn.vcsremotestatus, self.fm.do_cut)
 
+            
             if key in drawn.display_data:
-                self.execute_curses_batch(line, drawn.display_data[key])
+
+                display_data = drawn.display_data[key];
+
+                # Update the linenumber. This is asumed to be the first element in the list
+                if self.settings.number or self.settings.relativenumber:
+                    linenumber_str = str(self._calculate_linenumber(selected_i, i))
+                    display_data[0][0] = linenumber_str
+                    display_data[1][0] = self._calculate_linenumber_gutter(linenumber_str, linenumber_width)
+
+                self.execute_curses_batch(line, display_data)
                 self.color_reset()
                 continue
 
             text = drawn.basename
+
+
             if drawn.marked and (self.main_column or \
                     self.settings.display_tags_in_all_columns):
                 text = " " + text
@@ -269,6 +285,19 @@ class BrowserColumn(Pager):
             predisplay_left = []
             predisplay_right = []
             space = self.wid
+
+
+            # line number
+            if self.settings.number or self.settings.relativenumber:
+                linenumber_str = str(self._calculate_linenumber(selected_i, i))
+                linenumber_gutter = self._calculate_linenumber_gutter(linenumber_str, linenumber_width);
+                linenumber = [
+                                [linenumber_str, linenumber_color], 
+                                [linenumber_gutter, linenumber_color]
+                             ];
+                linenumlen = self._total_len(linenumber)
+                predisplay_left += linenumber
+                space -= linenumlen
 
             # selection mark
             tagmark = self._draw_tagged_display(tagged, tagged_marker)
@@ -320,6 +349,15 @@ class BrowserColumn(Pager):
 
     def _total_len(self, predisplay):
         return sum([len(WideString(s)) for s, L in predisplay])
+
+    def _calculate_linenumber(self, selected_i, index):
+        if self.settings.relativenumber:
+            return abs(selected_i - index)
+        elif self.settings.number:
+            return index
+
+    def _calculate_linenumber_gutter(self, linenumber_str, linenumber_width):
+        return " " * (linenumber_width - len(linenumber_str));
 
     def _draw_text_display(self, text, space):
         wtext = WideString(text)

@@ -147,5 +147,9 @@ class Default(ColorScheme):
                 fg = magenta
             elif context.vcsunknown:
                 fg = red
+        
+        if context.linenumber:
+          fg = white
+          attr &= ~reverse
 
         return fg, bg, attr
